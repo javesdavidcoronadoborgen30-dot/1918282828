@@ -1,0 +1,859 @@
+--[[
+	Aim + Speed - UI organizada
+	AIM COMUN + barra studs juntas
+	Speed ON/OFF + barra juntas
+]]
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local StarterGui = game:GetService("StarterGui")
+local HttpService = game:GetService("HttpService")
+
+local LocalPlayer = Players.LocalPlayer
+local camera = workspace.CurrentCamera
+local isMobile = UserInputService.TouchEnabled and not UserInputService.KeyboardEnabled
+
+local function getParent()
+	local ok, gui = pcall(function()
+		if gethui then return gethui() end
+	end)
+	if ok and gui then return gui end
+	ok = pcall(function()
+		local t = Instance.new("ScreenGui")
+		t.Parent = CoreGui
+		t:Destroy()
+	end)
+	if ok then return CoreGui end
+	return LocalPlayer:FindFirstChildOfClass("PlayerGui") or LocalPlayer:WaitForChild("PlayerGui", 5)
+end
+
+local parent = getParent()
+if not parent then return end
+
+pcall(function()
+	local old = parent:FindFirstChild("Menu_AimSpeed")
+	if old then old:Destroy() end
+end)
+
+local Accent  = Color3.fromRGB(255, 55, 190)
+local Accent2 = Color3.fromRGB(80, 200, 255)
+local Bg      = Color3.fromRGB(8, 10, 22)
+local Panel   = Color3.fromRGB(20, 24, 45)
+local Btn     = Color3.fromRGB(30, 34, 58)
+local OnCol   = Color3.fromRGB(0, 175, 110)
+local TextC   = Color3.fromRGB(255, 255, 255)
+local Dim     = Color3.fromRGB(160, 165, 190)
+local RedESP  = Color3.fromRGB(255, 35, 35)
+
+local OPEN_SIZE = UDim2.new(0, 290, 0, 420)
+local MIN_SIZE  = UDim2.new(0, 290, 0, 40)
+local SAVE_NAME = "es_aimspeed_save.json"
+
+local function corner(o, r)
+	local c = Instance.new("UICorner")
+	c.CornerRadius = UDim.new(0, r)
+	c.Parent = o
+end
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "Menu_AimSpeed"
+gui.ResetOnSpawn = false
+gui.IgnoreGuiInset = true
+gui.DisplayOrder = 999999
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Enabled = true
+pcall(function() gui.Parent = parent end)
+if not gui.Parent then
+	pcall(function() gui.Parent = LocalPlayer:WaitForChild("PlayerGui") end)
+end
+if not gui.Parent then return end
+
+local function notify(msg)
+	pcall(function()
+		StarterGui:SetCore("SendNotification", {
+			Title = "Aim+Speed",
+			Text = tostring(msg),
+			Duration = 2,
+		})
+	end)
+end
+
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = OPEN_SIZE
+main.Position = UDim2.new(0.5, -145, 0.2, 0)
+main.BackgroundColor3 = Bg
+main.BorderSizePixel = 0
+main.Visible = true
+main.Active = true
+main.Parent = gui
+corner(main, 16)
+
+do
+	local dragging, dragStart, startPos
+	main.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			dragStart = input.Position
+			startPos = main.Position
+		end
+	end)
+	main.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if not dragging then return end
+		if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+			local d = input.Position - dragStart
+			main.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+end
+
+local bgGrad = Instance.new("UIGradient")
+bgGrad.Color = ColorSequence.new({
+	ColorSequenceKeypoint.new(0, Color3.fromRGB(18, 12, 40)),
+	ColorSequenceKeypoint.new(0.5, Color3.fromRGB(10, 16, 38)),
+	ColorSequenceKeypoint.new(1, Color3.fromRGB(12, 28, 48)),
+})
+bgGrad.Rotation = 120
+bgGrad.Parent = main
+
+local glow = Instance.new("UIStroke")
+glow.Color = Accent
+glow.Thickness = 2
+glow.Parent = main
+
+local topLine = Instance.new("Frame")
+topLine.Size = UDim2.new(1, 0, 0, 3)
+topLine.BackgroundColor3 = Accent
+topLine.BorderSizePixel = 0
+topLine.Parent = main
+
+local titleBar = Instance.new("Frame")
+titleBar.Size = UDim2.new(1, 0, 0, 40)
+titleBar.BackgroundColor3 = Color3.fromRGB(15, 18, 40)
+titleBar.BackgroundTransparency = 0.3
+titleBar.BorderSizePixel = 0
+titleBar.Parent = main
+corner(titleBar, 16)
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -48, 1, 0)
+title.Position = UDim2.new(0, 12, 0, 0)
+title.BackgroundTransparency = 1
+title.Text = "Aim + Speed"
+title.TextColor3 = Accent
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = titleBar
+
+local minBtn = Instance.new("TextButton")
+minBtn.Size = UDim2.new(0, 32, 0, 32)
+minBtn.Position = UDim2.new(1, -36, 0.5, -16)
+minBtn.BackgroundColor3 = Btn
+minBtn.Text = "-"
+minBtn.TextColor3 = TextC
+minBtn.Font = Enum.Font.GothamBold
+minBtn.TextSize = 18
+minBtn.Parent = titleBar
+corner(minBtn, 8)
+
+local tabBar = Instance.new("Frame")
+tabBar.Size = UDim2.new(1, -16, 0, 32)
+tabBar.Position = UDim2.new(0, 8, 0, 46)
+tabBar.BackgroundColor3 = Panel
+tabBar.BorderSizePixel = 0
+tabBar.Parent = main
+corner(tabBar, 10)
+
+local function makeTab(txt, x)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0.5, -6, 1, -6)
+	b.Position = UDim2.new(x, 4, 0, 3)
+	b.BackgroundColor3 = Btn
+	b.Text = txt
+	b.TextColor3 = Dim
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 12
+	b.Parent = tabBar
+	corner(b, 8)
+	return b
+end
+
+local homeTab = makeTab("HOME", 0)
+local configTab = makeTab("CONFIG", 0.5)
+homeTab.BackgroundColor3 = Accent
+homeTab.TextColor3 = Color3.new(1, 1, 1)
+
+local function makeScroll()
+	local f = Instance.new("ScrollingFrame")
+	f.Size = UDim2.new(1, -12, 1, -86)
+	f.Position = UDim2.new(0, 6, 0, 82)
+	f.BackgroundTransparency = 1
+	f.BorderSizePixel = 0
+	f.ScrollBarThickness = 4
+	f.ScrollBarImageColor3 = Accent2
+	f.AutomaticCanvasSize = Enum.AutomaticSize.Y
+	f.CanvasSize = UDim2.new(0, 0, 0, 0)
+	f.Visible = true
+	f.Parent = main
+	local lay = Instance.new("UIListLayout")
+	lay.Parent = f
+	lay.Padding = UDim.new(0, 5)
+	lay.HorizontalAlignment = Enum.HorizontalAlignment.Center
+	lay.SortOrder = Enum.SortOrder.LayoutOrder
+	local pad = Instance.new("UIPadding")
+	pad.PaddingBottom = UDim.new(0, 20)
+	pad.PaddingTop = UDim.new(0, 4)
+	pad.Parent = f
+	return f, lay
+end
+
+local homeFrame = makeScroll()
+local configFrame = makeScroll()
+configFrame.Visible = false
+
+local function switchTab(tab)
+	homeTab.BackgroundColor3 = Btn
+	homeTab.TextColor3 = Dim
+	configTab.BackgroundColor3 = Btn
+	configTab.TextColor3 = Dim
+	homeFrame.Visible = false
+	configFrame.Visible = false
+	tab.BackgroundColor3 = Accent
+	tab.TextColor3 = Color3.new(1, 1, 1)
+	if tab == homeTab then
+		homeFrame.Visible = true
+	else
+		configFrame.Visible = true
+	end
+end
+
+homeTab.MouseButton1Click:Connect(function() switchTab(homeTab) end)
+configTab.MouseButton1Click:Connect(function() switchTab(configTab) end)
+
+local minimized = false
+minBtn.MouseButton1Click:Connect(function()
+	minimized = not minimized
+	if minimized then
+		minBtn.Text = "+"
+		tabBar.Visible = false
+		homeFrame.Visible = false
+		configFrame.Visible = false
+		main.Size = MIN_SIZE
+	else
+		minBtn.Text = "-"
+		tabBar.Visible = true
+		switchTab(homeTab)
+		main.Size = OPEN_SIZE
+	end
+end)
+
+local aimOn, aimCommonOn, speedOn = false, false, false
+local espOn, espNameOn = false, false
+local speedVal = 30
+local commonRange = 15
+local SelectedPlayer = nil
+local aimKey = Enum.KeyCode.E
+local waitingKey = false
+local floatAim = nil
+local commonBtn, aimBtn, speedBtn, espBtn, espNameBtn
+
+local order = 0
+local function nextOrder()
+	order += 1
+	return order
+end
+
+local function setBtn(btn, on, onT, offT)
+	btn.Text = on and onT or offT
+	btn.BackgroundColor3 = on and OnCol or Btn
+end
+
+local function section(parent, text)
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(0, 268, 0, 16)
+	l.BackgroundTransparency = 1
+	l.Text = text
+	l.TextColor3 = Accent2
+	l.Font = Enum.Font.GothamBold
+	l.TextSize = 12
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.LayoutOrder = nextOrder()
+	l.Parent = parent
+end
+
+local function makeBtn(parent, text)
+	local b = Instance.new("TextButton")
+	b.Size = UDim2.new(0, 268, 0, 34)
+	b.BackgroundColor3 = Btn
+	b.Text = text
+	b.TextColor3 = TextC
+	b.Font = Enum.Font.GothamBold
+	b.TextSize = 13
+	b.LayoutOrder = nextOrder()
+	b.Parent = parent
+	corner(b, 10)
+	return b
+end
+
+local function makeLabel(parent, text)
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(0, 268, 0, 14)
+	l.BackgroundTransparency = 1
+	l.Text = text
+	l.TextColor3 = Dim
+	l.Font = Enum.Font.Gotham
+	l.TextSize = 11
+	l.TextXAlignment = Enum.TextXAlignment.Left
+	l.LayoutOrder = nextOrder()
+	l.Parent = parent
+	return l
+end
+
+local function makeBar(parent)
+	local bg = Instance.new("Frame")
+	bg.Size = UDim2.new(0, 268, 0, 26)
+	bg.BackgroundColor3 = Panel
+	bg.BorderSizePixel = 0
+	bg.LayoutOrder = nextOrder()
+	bg.Parent = parent
+	corner(bg, 8)
+	local fill = Instance.new("Frame")
+	fill.Size = UDim2.new(0.3, 0, 1, 0)
+	fill.BackgroundColor3 = Accent2
+	fill.BorderSizePixel = 0
+	fill.Parent = bg
+	corner(fill, 8)
+	local lab = Instance.new("TextLabel")
+	lab.Size = UDim2.new(1, 0, 1, 0)
+	lab.BackgroundTransparency = 1
+	lab.Text = ""
+	lab.TextColor3 = TextC
+	lab.Font = Enum.Font.GothamBold
+	lab.TextSize = 12
+	lab.ZIndex = 2
+	lab.Parent = bg
+	return bg, fill, lab
+end
+
+local function makeBox(parent, placeholder, default)
+	local b = Instance.new("TextBox")
+	b.Size = UDim2.new(0, 268, 0, 26)
+	b.BackgroundColor3 = Panel
+	b.Text = default or ""
+	b.PlaceholderText = placeholder
+	b.TextColor3 = TextC
+	b.Font = Enum.Font.Gotham
+	b.TextSize = 12
+	b.LayoutOrder = nextOrder()
+	b.Parent = parent
+	corner(b, 8)
+	return b
+end
+
+local function hideDefaultName(p)
+	if not p.Character then return end
+	local hum = p.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.None
+		hum.NameDisplayDistance = 0
+		hum.HealthDisplayDistance = 0
+	end
+end
+
+local function restoreDefaultName(p)
+	if not p.Character then return end
+	local hum = p.Character:FindFirstChildOfClass("Humanoid")
+	if hum then
+		hum.DisplayDistanceType = Enum.HumanoidDisplayDistanceType.Viewer
+		hum.NameDisplayDistance = 100
+	end
+end
+
+local function addESP(p)
+	if not p.Character then return end
+	local hl = p.Character:FindFirstChild("AS_ESP")
+	if not hl then
+		hl = Instance.new("Highlight")
+		hl.Name = "AS_ESP"
+		hl.FillTransparency = 0.45
+		hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+		hl.Parent = p.Character
+	end
+	hl.FillColor = RedESP
+	hl.OutlineColor = RedESP
+end
+
+local function remESP(p)
+	if p.Character then
+		local h = p.Character:FindFirstChild("AS_ESP")
+		if h then h:Destroy() end
+	end
+end
+
+local function addName(p)
+	if not p.Character or p == LocalPlayer then return end
+	hideDefaultName(p)
+	local head = p.Character:FindFirstChild("Head")
+	if not head or head:FindFirstChild("AS_Name") then return end
+	local bb = Instance.new("BillboardGui")
+	bb.Name = "AS_Name"
+	bb.AlwaysOnTop = true
+	bb.Size = UDim2.new(0, 150, 0, 22)
+	bb.StudsOffset = Vector3.new(0, 2.6, 0)
+	bb.Parent = head
+	local l = Instance.new("TextLabel")
+	l.Size = UDim2.new(1, 0, 1, 0)
+	l.BackgroundTransparency = 1
+	l.Text = p.DisplayName
+	l.TextColor3 = RedESP
+	l.TextStrokeTransparency = 0.35
+	l.Font = Enum.Font.GothamBold
+	l.TextSize = 13
+	l.Parent = bb
+end
+
+local function remName(p)
+	if p.Character then
+		local head = p.Character:FindFirstChild("Head")
+		if head then
+			local n = head:FindFirstChild("AS_Name")
+			if n then n:Destroy() end
+		end
+		if not espNameOn then restoreDefaultName(p) end
+	end
+end
+
+-- ========== HOME (orden fijo con LayoutOrder) ==========
+
+-- 1) JUGADORES
+section(homeFrame, "JUGADORES")
+local listLabel = makeLabel(homeFrame, "Target: nadie")
+
+local playerList = Instance.new("ScrollingFrame")
+playerList.Size = UDim2.new(0, 268, 0, 70)
+playerList.BackgroundColor3 = Panel
+playerList.BorderSizePixel = 0
+playerList.ScrollBarThickness = 3
+playerList.LayoutOrder = nextOrder()
+playerList.Parent = homeFrame
+corner(playerList, 8)
+
+local listLay = Instance.new("UIListLayout")
+listLay.Parent = playerList
+listLay.Padding = UDim.new(0, 2)
+listLay.HorizontalAlignment = Enum.HorizontalAlignment.Center
+
+local listButtons = {}
+local function refreshList()
+	for _, b in pairs(listButtons) do b:Destroy() end
+	table.clear(listButtons)
+	local n = 0
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			n += 1
+			local btn = Instance.new("TextButton")
+			btn.Size = UDim2.new(0, 256, 0, 22)
+			btn.BackgroundColor3 = (SelectedPlayer == p) and Accent or Btn
+			btn.Text = p.DisplayName
+			btn.TextColor3 = TextC
+			btn.Font = Enum.Font.GothamBold
+			btn.TextSize = 12
+			btn.Parent = playerList
+			corner(btn, 6)
+			btn.MouseButton1Click:Connect(function()
+				SelectedPlayer = (SelectedPlayer == p) and nil or p
+				refreshList()
+				listLabel.Text = SelectedPlayer and ("Target: " .. SelectedPlayer.DisplayName) or "Target: nadie"
+				listLabel.TextColor3 = SelectedPlayer and Accent or Dim
+			end)
+			listButtons[p] = btn
+		end
+	end
+	playerList.CanvasSize = UDim2.new(0, 0, 0, n * 26)
+end
+refreshList()
+Players.PlayerAdded:Connect(function() task.wait(0.4) refreshList() end)
+Players.PlayerRemoving:Connect(function(p)
+	if SelectedPlayer == p then SelectedPlayer = nil end
+	refreshList()
+end)
+
+-- 2) AIM SELECT + M
+section(homeFrame, "AIM SELECT")
+local aimRow = Instance.new("Frame")
+aimRow.Size = UDim2.new(0, 268, 0, 34)
+aimRow.BackgroundTransparency = 1
+aimRow.LayoutOrder = nextOrder()
+aimRow.Parent = homeFrame
+
+aimBtn = Instance.new("TextButton")
+aimBtn.Size = UDim2.new(1, -40, 1, 0)
+aimBtn.BackgroundColor3 = Btn
+aimBtn.Text = "Auto Aim: OFF"
+aimBtn.TextColor3 = TextC
+aimBtn.Font = Enum.Font.GothamBold
+aimBtn.TextSize = 13
+aimBtn.Parent = aimRow
+corner(aimBtn, 10)
+
+local mBtn = Instance.new("TextButton")
+mBtn.Size = UDim2.new(0, 34, 1, 0)
+mBtn.Position = UDim2.new(1, -34, 0, 0)
+mBtn.BackgroundColor3 = Color3.fromRGB(90, 190, 255)
+mBtn.Text = "M"
+mBtn.TextColor3 = Color3.fromRGB(10, 30, 60)
+mBtn.Font = Enum.Font.GothamBold
+mBtn.TextSize = 14
+mBtn.Parent = aimRow
+corner(mBtn, 10)
+
+local function toggleAim()
+	if not SelectedPlayer then
+		notify("Elige un jugador")
+		return
+	end
+	aimOn = not aimOn
+	if aimOn then
+		aimCommonOn = false
+		if commonBtn then setBtn(commonBtn, false, "AIM COMUN: ON", "AIM COMUN: OFF") end
+	end
+	setBtn(aimBtn, aimOn, "Auto Aim: ON", "Auto Aim: OFF")
+	if floatAim then floatAim.BackgroundColor3 = aimOn and OnCol or Btn end
+end
+aimBtn.MouseButton1Click:Connect(toggleAim)
+
+local function makeDraggable(frame)
+	local dragging, start, startPos
+	frame.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = true
+			start = input.Position
+			startPos = frame.Position
+		end
+	end)
+	frame.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging = false
+		end
+	end)
+	UserInputService.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local d = input.Position - start
+			frame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + d.X, startPos.Y.Scale, startPos.Y.Offset + d.Y)
+		end
+	end)
+end
+
+local function createFloatAim()
+	if floatAim then floatAim:Destroy() end
+	local f = Instance.new("TextButton")
+	f.Size = UDim2.new(0, 90, 0, 38)
+	f.Position = UDim2.new(0, 20, 0.6, 0)
+	f.BackgroundColor3 = aimOn and OnCol or Btn
+	f.Text = "AIM"
+	f.TextColor3 = TextC
+	f.Font = Enum.Font.GothamBold
+	f.TextSize = 14
+	f.Parent = gui
+	corner(f, 10)
+	local fs = Instance.new("UIStroke")
+	fs.Color = Accent2
+	fs.Parent = f
+	makeDraggable(f)
+	f.MouseButton1Click:Connect(function()
+		if not waitingKey then toggleAim() end
+	end)
+	floatAim = f
+end
+
+mBtn.MouseButton1Click:Connect(function()
+	if floatAim then
+		floatAim:Destroy()
+		floatAim = nil
+		notify("Flotante cerrado")
+	else
+		createFloatAim()
+		notify("Arrastra AIM")
+	end
+end)
+
+UserInputService.InputBegan:Connect(function(input, gp)
+	if waitingKey and input.UserInputType == Enum.UserInputType.Keyboard then
+		aimKey = input.KeyCode
+		waitingKey = false
+		if floatAim then floatAim.Text = "AIM" end
+		notify("Tecla " .. aimKey.Name)
+		return
+	end
+	if isMobile or gp then return end
+	if input.KeyCode == aimKey then toggleAim() end
+end)
+
+-- 3) AIM COMUN + barra studs PEGADA debajo
+section(homeFrame, "AIM COMUN")
+commonBtn = makeBtn(homeFrame, "AIM COMUN: OFF")
+commonBtn.MouseButton1Click:Connect(function()
+	aimCommonOn = not aimCommonOn
+	if aimCommonOn then
+		aimOn = false
+		setBtn(aimBtn, false, "Auto Aim: ON", "Auto Aim: OFF")
+	end
+	setBtn(commonBtn, aimCommonOn, "AIM COMUN: ON", "AIM COMUN: OFF")
+	notify(aimCommonOn and ("Rango " .. commonRange .. " studs") or "Off")
+end)
+
+local rangeLabel = makeLabel(homeFrame, "Rango: 15 studs")
+local rangeBg, rangeFill, rangeBarLab = makeBar(homeFrame)
+rangeBarLab.Text = "15 studs"
+rangeFill.Size = UDim2.new(15 / 50, 0, 1, 0)
+rangeFill.BackgroundColor3 = Accent2
+
+local rangeBox = makeBox(homeFrame, "Studs 5-50", "15")
+
+local function applyRange(v)
+	commonRange = math.clamp(v, 5, 50)
+	rangeBox.Text = tostring(math.floor(commonRange))
+	rangeLabel.Text = "Rango: " .. math.floor(commonRange) .. " studs"
+	rangeBarLab.Text = math.floor(commonRange) .. " studs"
+	rangeFill.Size = UDim2.new(commonRange / 50, 0, 1, 0)
+end
+
+rangeBox.FocusLost:Connect(function()
+	local n = tonumber(rangeBox.Text)
+	if n then applyRange(n) end
+end)
+
+rangeBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		local rel = math.clamp((input.Position.X - rangeBg.AbsolutePosition.X) / math.max(rangeBg.AbsoluteSize.X, 1), 0, 1)
+		applyRange(5 + rel * 45)
+	end
+end)
+
+-- 4) TP
+section(homeFrame, "TP")
+local tpBtn = makeBtn(homeFrame, "TP al seleccionado")
+tpBtn.MouseButton1Click:Connect(function()
+	if not SelectedPlayer or not SelectedPlayer.Character then
+		notify("Elige jugador")
+		return
+	end
+	local my = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+	local th = SelectedPlayer.Character:FindFirstChild("HumanoidRootPart")
+	if my and th then
+		my.CFrame = th.CFrame * CFrame.new(0, 0, 3.5)
+		notify("TP ok")
+	end
+end)
+
+-- 5) SPEED: botón ON/OFF y barra JUSTO debajo
+section(homeFrame, "SPEED")
+speedBtn = makeBtn(homeFrame, "Speed: OFF")
+speedBtn.MouseButton1Click:Connect(function()
+	speedOn = not speedOn
+	setBtn(speedBtn, speedOn, "Speed: ON", "Speed: OFF")
+	if not speedOn then
+		local hum = LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+		if hum then hum.WalkSpeed = 16 end
+	end
+end)
+
+local speedBg, speedFill, speedBarLab = makeBar(homeFrame)
+speedBarLab.Text = "Speed: 30"
+speedFill.Size = UDim2.new(0.15, 0, 1, 0)
+speedFill.BackgroundColor3 = Accent
+
+local speedBox = makeBox(homeFrame, "Velocidad", "30")
+
+local function applySpeed(v)
+	speedVal = math.max(1, v)
+	speedBox.Text = tostring(math.floor(speedVal))
+	speedBarLab.Text = "Speed: " .. math.floor(speedVal)
+	speedFill.Size = UDim2.new(math.clamp(speedVal / 200, 0.05, 1), 0, 1, 0)
+end
+
+speedBox.FocusLost:Connect(function()
+	local n = tonumber(speedBox.Text)
+	if n then applySpeed(n) end
+end)
+
+speedBg.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		local rel = math.clamp((input.Position.X - speedBg.AbsolutePosition.X) / math.max(speedBg.AbsoluteSize.X, 1), 0, 1)
+		applySpeed(16 + rel * 284)
+	end
+end)
+
+-- 6) ESP
+section(homeFrame, "ESP")
+espBtn = makeBtn(homeFrame, "ESP Rojo: OFF")
+espNameBtn = makeBtn(homeFrame, "ESP Name: OFF")
+
+espBtn.MouseButton1Click:Connect(function()
+	espOn = not espOn
+	setBtn(espBtn, espOn, "ESP Rojo: ON", "ESP Rojo: OFF")
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			if espOn then addESP(p) else remESP(p) end
+		end
+	end
+end)
+
+espNameBtn.MouseButton1Click:Connect(function()
+	espNameOn = not espNameOn
+	setBtn(espNameBtn, espNameOn, "ESP Name: ON", "ESP Name: OFF")
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			if espNameOn then
+				addName(p)
+			else
+				remName(p)
+				restoreDefaultName(p)
+			end
+		end
+	end
+end)
+
+-- CONFIG
+order = 0
+section(configFrame, "GUARDAR / BORRAR")
+
+local function getSave()
+	return {
+		aimOn = aimOn,
+		aimCommonOn = aimCommonOn,
+		speedOn = speedOn,
+		speedVal = speedVal,
+		commonRange = commonRange,
+		espOn = espOn,
+		espNameOn = espNameOn,
+		aimKey = aimKey.Name,
+	}
+end
+
+local function applySave(d)
+	if not d then return end
+	applySpeed(d.speedVal or 30)
+	applyRange(d.commonRange or 15)
+	aimOn = d.aimOn or false
+	aimCommonOn = d.aimCommonOn or false
+	speedOn = d.speedOn or false
+	espOn = d.espOn or false
+	espNameOn = d.espNameOn or false
+	setBtn(aimBtn, aimOn, "Auto Aim: ON", "Auto Aim: OFF")
+	setBtn(commonBtn, aimCommonOn, "AIM COMUN: ON", "AIM COMUN: OFF")
+	setBtn(speedBtn, speedOn, "Speed: ON", "Speed: OFF")
+	setBtn(espBtn, espOn, "ESP Rojo: ON", "ESP Rojo: OFF")
+	setBtn(espNameBtn, espNameOn, "ESP Name: ON", "ESP Name: OFF")
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer then
+			if espOn then addESP(p) else remESP(p) end
+			if espNameOn then addName(p) else remName(p) restoreDefaultName(p) end
+		end
+	end
+end
+
+local saveBtn = makeBtn(configFrame, "Guardar lo activado")
+saveBtn.BackgroundColor3 = OnCol
+local clearBtn = makeBtn(configFrame, "Borrar lo guardado")
+clearBtn.BackgroundColor3 = Color3.fromRGB(160, 45, 55)
+
+saveBtn.MouseButton1Click:Connect(function()
+	_G.__AimSpeedSave = getSave()
+	pcall(function()
+		if writefile then
+			writefile(SAVE_NAME, HttpService:JSONEncode(_G.__AimSpeedSave))
+		end
+	end)
+	notify("Guardado")
+end)
+
+clearBtn.MouseButton1Click:Connect(function()
+	_G.__AimSpeedSave = nil
+	pcall(function()
+		if delfile then delfile(SAVE_NAME) end
+	end)
+	aimOn, aimCommonOn, speedOn, espOn, espNameOn = false, false, false, false, false
+	applySave(getSave())
+	notify("Borrado")
+end)
+
+local function onChar(p)
+	task.wait(0.15)
+	if p == LocalPlayer then return end
+	if espOn then addESP(p) end
+	if espNameOn then addName(p) end
+end
+
+for _, p in ipairs(Players:GetPlayers()) do
+	p.CharacterAdded:Connect(function() onChar(p) end)
+	if p.Character then onChar(p) end
+end
+Players.PlayerAdded:Connect(function(p)
+	p.CharacterAdded:Connect(function() onChar(p) end)
+end)
+
+local function getHead(p)
+	return p.Character and p.Character:FindFirstChild("Head")
+end
+local function getHRP(p)
+	return p.Character and p.Character:FindFirstChild("HumanoidRootPart")
+end
+local function getHum(p)
+	return p.Character and p.Character:FindFirstChildOfClass("Humanoid")
+end
+
+local function closestInRange(maxR)
+	local my = getHRP(LocalPlayer)
+	if not my then return nil end
+	local best, bestD = nil, maxR
+	for _, p in ipairs(Players:GetPlayers()) do
+		if p ~= LocalPlayer and getHum(p) and getHum(p).Health > 0 then
+			local h = getHead(p)
+			local hrp = getHRP(p)
+			if h and hrp then
+				local d = (hrp.Position - my.Position).Magnitude
+				if d <= bestD then
+					bestD = d
+					best = h
+				end
+			end
+		end
+	end
+	return best
+end
+
+RunService.RenderStepped:Connect(function()
+	if aimOn and SelectedPlayer then
+		local head = getHead(SelectedPlayer)
+		local hum = getHum(SelectedPlayer)
+		if head and hum and hum.Health > 0 then
+			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, head.Position)
+		end
+	end
+	if aimCommonOn then
+		local head = closestInRange(commonRange)
+		if head then
+			camera.CFrame = CFrame.lookAt(camera.CFrame.Position, head.Position)
+		end
+	end
+	if speedOn then
+		local hum = getHum(LocalPlayer)
+		if hum then hum.WalkSpeed = speedVal end
+	end
+	if espNameOn then
+		for _, p in ipairs(Players:GetPlayers()) do
+			if p ~= LocalPlayer then hideDefaultName(p) end
+		end
+	end
+end)
+
+notify("Menu cargado")
